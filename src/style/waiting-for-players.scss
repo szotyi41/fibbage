@@ -1,0 +1,98 @@
+.waiting-for-players-content {
+    display: flex;
+    flex-direction: column;
+    width: 100vw;
+
+    /* Player screen */
+    .player-screen {
+        width: 100vw;
+
+        .enter-player-name-section {
+            width: 70%;
+            margin: auto;
+
+            .enter-player-name {
+                display: flex;
+                flex-direction: column;
+                max-width: 80vw;
+                margin: auto;
+            }
+        }
+
+        .player-name-created-section {
+            width: 100%;
+
+            .joined-player-section {
+                display: flex;
+                justify-content: center;
+                width: 100%;
+                padding: 64px 0;
+            }
+
+            .enter-room-code-section {
+                width: 70%;
+                margin: auto;
+
+                .already-joined-players-section {
+                    width: 100%;
+                }
+            }
+        }
+    }
+
+    /* Room screen */
+    .room-screen {
+        display: flex;
+        width: 100vw;
+
+        .room-code-section {
+            display: flex;
+            flex-direction: column;
+            width: 70vw;
+            height: 50vh;
+
+            .room-code {
+                background-color: rgba(0, 0, 0, 0.5);
+                border-radius: 8px;
+                padding: 32px 48px;
+                color: rgb(232, 169, 32);
+                -webkit-text-fill-color: rgb(
+                    232,
+                    169,
+                    32
+                ); /* Will override color (regardless of order) */
+                -webkit-text-stroke-width: 1px;
+                -webkit-text-stroke-color: black;
+                max-width: 300px;
+                font-weight: 900;
+                margin: auto;
+                font-size: 64px;
+                text-align: center;
+            }
+        }
+
+        .players-joined-section {
+            display: flex;
+            flex-direction: column;
+            width: 30vw;
+            height: 100vh;
+            background-color: #fff;
+
+            .players-joined {
+                display: flex;
+                flex-direction: column;
+
+                .player-joined {
+                    color: #fff;
+                    border-top: 4px solid #000;
+                    background-color: $color-blue-light;
+                    padding: 24px 32px;
+
+                    :last-child {
+                        border-bottom: 4px solid #000;
+                    }
+                }
+            }
+        }
+    }
+}
