@@ -390,6 +390,9 @@ io.sockets.on('connection', function (socket) {
         });
     });
 
+    // Everybody in, start game
+    socket.on('everybody_in_to_server', function (data, callback) {});
+
     socket.on('get_fact_to_server', async function (data, callback) {
         const factId = await redisClient.randomkey();
         const fact = await redisClient.get(factId);
