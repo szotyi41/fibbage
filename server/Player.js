@@ -2,7 +2,7 @@ class Player {
     constructor(id, playerName) {
         this.id = id;
         this.playerName = playerName;
-        this.room = false;
+        this.room = {};
         this.ready = false;
     }
 
@@ -14,8 +14,16 @@ class Player {
         return this.playerName;
     }
 
+    setRoom(room) {
+        this.room = {
+            id: room.id,
+            roomCode: room.roomCode
+        };
+        return this;
+    }
+
     getRoom(rooms) {
-        return rooms.find((room) => room.roomCode === this.room);
+        return rooms.find((room) => room.roomCode === this.room.roomCode);
     }
 
     setReady(ready) {
@@ -55,4 +63,4 @@ class Player {
     }
 }
 
-module.exports = Player;
+export default Player;

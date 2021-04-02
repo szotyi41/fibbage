@@ -1,196 +1,115 @@
-const http = require('http');
-const socketio = require('socket.io');
-const redis = require('async-redis');
+import express from 'express';
+import * as http from 'http';
+import * as socketio from 'socket.io';
+import cors from 'cors';
 
-const GameRoom = require('./GameRoom.js');
-const Player = require('./Player.js');
-const Message = require('./Message.js');
+import Room from './Room.js';
+import Player from './Player.js';
+import Categories from './Categories.js';
+import Fact from './Fact.js';
 
-var players = {}; // map from player id -> player object
-var gameRooms = []; // array of game rooms (index is the)
+const categoriesInstance = new Categories();
+var players = {};
+var gameRooms = [];
 var connections = [];
-var gameHistory = {}; // map from roomId to array of messages
-var privateMessages = {}; // map from privateRoomId to array of messages
 
-const redisClient = redis.createClient();
+// Initialize express and socket io
+const app = express();
+const server = http.createServer(app);
+server.listen(3001, () => console.log('Listening at ', 3001));
 
-const app = http.createServer();
-app.listen(3001, () => console.log('Listening at ', 3001));
+const io = new socketio.Server();
+io.attach(server);
 
-// Do the Socket.IO magic:
-const cors = {
-    cors: {
-        origin: 'http://localhost:3000',
-        credentials: true,
-        transport: ['websocket']
-    }
-};
-const io = socketio(http, cors).listen(app);
 io.sockets.on('connection', function (socket) {
     // This callback runs when a new Socket.IO connection is established.
     connections.push(socket);
 
-    socket.on('message_to_server', function (data) {
-        var room = gameRooms[data['room']];
-        var messageText = data['message'];
-        var sentAt = data['sent_at'];
-        var player = players[socket.id];
-
-        console.log(
-            player.playerName +
-                ': ' +
-                messageText +
-                ' in room ' +
-                room.name +
-                ' at ' +
-                sentAt
-        );
-
-        if (!gameHistory.hasOwnProperty(room.id)) {
-            // create new game history
-            gameHistory[room.id] = [];
-        }
-
-        // add the message to the history
-        var message = new Message(player, messageText, room.id, sentAt);
-
-        var history = gameHistory[room.id];
-        history.push(message);
-
-        io.sockets
-            .in(room.name)
-            .emit('message_to_client', { game_history: history });
-    });
-
-    socket.on('private_message_to_server', function (data) {
-        var room = gameRooms[data['room']];
-        var messageText = data['message'];
-        var sentAt = data['sent_at'];
-        var toPlayerId = data['to_player_id'];
-        var toPlayer = players[toPlayerId];
-        var player = players[socket.id];
-
-        console.log(
-            player.playerName +
-                ': ' +
-                messageText +
-                ' in room ' +
-                room.name +
-                ' at ' +
-                sentAt +
-                ' to player ' +
-                toPlayerId
-        );
-        var pairId = getUniquePairId(player, toPlayer);
-        console.log(pairId);
-
-        if (!privateMessages.hasOwnProperty(pairId)) {
-            // create new game history
-            privateMessages[pairId] = [];
-        }
-
-        // add the message to the history
-        var message = new Message(player, messageText, room.id, sentAt);
-        message.private = true;
-        message.toPlayer = toPlayer;
-
-        if (Player.Player.playerInRoom(room, toPlayer)) {
-            var socketOfPlayerToMessage = findId(connections, toPlayerId);
-            console.log(toPlayerId);
-            console.log(connections);
-            var history = privateMessages[pairId];
-            history.push(message);
-
-            socketOfPlayerToMessage.emit('private_message_to_client', {
-                game_history: history
-            });
-            socket.emit('private_message_to_client', { game_history: history });
-        } else {
-            console.log('unable to message player ' + message.toPlayerId);
-        }
-    });
-
-    // Player input her/his name and press send button
-    socket.on('send_player_name_to_server', function (data, callback) {
-        const playerName = data['playerName'];
-
-        // Playername is empty
-        if (!playerName) {
-            callback({
-                success: false,
-                message: 'Player name cannot be empty'
-            });
-            return;
-        }
-        socket.playerName = playerName;
-
-        // Check player is already exists
-        const oldPlayerId = Player.isPlayerAlreadyExists(playerName, players);
-
-        // Player not exists yet, create it
-        if (oldPlayerId === false) {
-            const player = new Player(socket.id, socket.playerName);
-            players[player.id] = player;
-            console.log(playerName + ' joined the server with id ' + socket.id);
-            callback({ success: true, player: player });
-
-            // Send update to all players
-            io.sockets.emit('update_players', players);
-
-            // send game room list to the newly registered client
-            socket.emit('update_game_rooms', { rooms: gameRooms });
-
-            return;
-        }
-
-        // if playerName already exists, then reset the id to the socket id
-        const oldPlayer = players[oldPlayerId];
-        const player = oldPlayer;
-        player.id = socket.id;
-        players[player.id] = player;
-
-        // Delete the old player
-        delete players.oldPlayerId;
-
-        // Update players (like observer)
-        for (var i = 0; i < gameRooms.length; i++) {
-            var room = gameRooms[i];
-
-            // Update players in room
-            for (var i = 0; i < room.players.length; i++) {
-                var roomPlayer = room.players[i];
-                if (roomPlayer.playerName === playerName) {
-                    roomPlayer.id = player.id;
-                }
+    // Player input her/his name and press send button (from player)
+    socket.on(
+        'send_player_name_to_server',
+        function ({ playerName }, callback) {
+            // Playername is empty
+            if (!playerName) {
+                callback({
+                    success: false,
+                    message: 'Player name cannot be empty'
+                });
+                return;
             }
+            socket.playerName = playerName;
 
-            // Update banned players in room
-            for (var i = 0; i < room.bannedPlayers.length; i++) {
-                var roomPlayer = room.bannedPlayers[i];
-                if (roomPlayer.playerName === playerName) {
-                    roomPlayer.id = player.id;
-                }
-            }
-        }
-
-        console.log(playerName + ' rejoined the server with id ' + socket.id);
-
-        // If joined to room
-        if (player.room) {
-            const room = gameRooms.find(
-                (room) => room.roomCode === player.room
+            // Check player is already exists
+            const oldPlayerId = Player.isPlayerAlreadyExists(
+                playerName,
+                players
             );
-            callback({ success: true, player: player, room: room });
-        } else {
+
+            // Player not exists yet, create it
+            if (oldPlayerId === false) {
+                const player = new Player(socket.id, socket.playerName);
+                players[player.id] = player;
+                console.log(
+                    playerName + ' joined the server with id ' + socket.id
+                );
+                callback({ success: true, player: player });
+
+                // Send update to all players
+                io.sockets.emit('update_players', players);
+
+                // send game room list to the newly registered client
+                socket.emit('update_game_rooms', { rooms: gameRooms });
+
+                return;
+            }
+
+            // if playerName already exists, then reset the id to the socket id
+            const oldPlayer = players[oldPlayerId];
+            const player = oldPlayer;
+            player.id = socket.id;
+            players[player.id] = player;
+
+            // Delete the old player
+            delete players.oldPlayerId;
+
+            // Update players (like observer)
+            for (var i = 0; i < gameRooms.length; i++) {
+                var room = gameRooms[i];
+
+                // Update players in room
+                for (var i = 0; i < room.players.length; i++) {
+                    var roomPlayer = room.players[i];
+                    if (roomPlayer.playerName === playerName) {
+                        roomPlayer.id = player.id;
+                    }
+                }
+
+                // Update banned players in room
+                for (var i = 0; i < room.bannedPlayers.length; i++) {
+                    var roomPlayer = room.bannedPlayers[i];
+                    if (roomPlayer.playerName === playerName) {
+                        roomPlayer.id = player.id;
+                    }
+                }
+            }
+
+            console.log(
+                playerName + ' rejoined the server with id ' + socket.id
+            );
+
+            // If player is already joined to room
+            if (player.room.id) {
+                const room = gameRooms.find(
+                    (room) => room.roomCode === player.room.roomCode
+                );
+                callback({ success: true, player: player, room: room });
+                return;
+            }
+
+            // New player
             callback({ success: true, player: player });
         }
-
-        // Send update to all players
-        io.sockets.emit('update_players', players);
-
-        // send game room list to the newly registered client
-        socket.emit('update_game_rooms', { rooms: gameRooms });
-    });
+    );
 
     // Remove socket from connection, if there is a playerName
     socket.on('disconnect', function (data) {
@@ -215,154 +134,100 @@ io.sockets.on('connection', function (socket) {
         io.sockets.emit('update_game_rooms', { rooms: gameRooms });
     });
 
-    socket.on('client_player_typing', function (data) {
-        var playerName = data['playerName'];
-        var roomId = data['room_id'];
-        var room = gameRooms[roomId];
-
-        io.sockets
-            .in(socket.room)
-            .emit('server_player_typing', { playerName: playerName });
-    });
-
-    socket.on('request_player_info', function (data) {
-        var currentPlayer = players[socket.id];
-
-        var createdRooms = [];
-        var bannedFromRooms = [];
-        var numMessagesSent = 0;
-        for (var i = 0; i < gameRooms.length; i++) {
-            var room = gameRooms[i];
-            if (room.owner.id === currentPlayer.id) {
-                createdRooms.push(room.name);
-            }
-
-            for (var j = 0; j < room.bannedPlayers.length; j++) {
-                var player = room.bannedPlayers[j];
-                if (player.id === currentPlayer.id) {
-                    bannedFromRooms.push(room.name);
-                }
-            }
-
-            if (gameHistory.hasOwnProperty(room.id)) {
-                var messages = gameHistory[room.id];
-                for (var j = 0; j < messages.length; j++) {
-                    var message = messages[j];
-                    if (message.player.id === currentPlayer.id) {
-                        numMessagesSent++;
-                    }
-                }
-            }
-        }
-
-        socket.emit('recieved_player_info', {
-            id: currentPlayer.id,
-            playerName: currentPlayer.playerName,
-            created_rooms: createdRooms,
-            banned_rooms: bannedFromRooms,
-            num_messages_sent: numMessagesSent
-        });
-    });
-
-    // Create room and join code (Finished)
+    // Create room and join code (from room)
     socket.on('create_game_room_to_server', function (data, callback) {
         // Make 5 characters room code
-        const roomCode = GameRoom.makeRoomCode(5);
+        const roomCode = Room.makeRoomCode(5);
         const roomId = gameRooms.length;
-        const room = new GameRoom(roomId, roomCode);
-
-        // Create game history
-        if (!gameHistory.hasOwnProperty(room.roomId)) {
-            gameHistory[room.id] = [];
-        }
+        const room = new Room(roomId, roomCode);
 
         // Join to room
-        socket.room = room.roomCode;
+        socket.room = room;
         gameRooms.push(room);
-        socket.join(socket.room);
+        socket.join(socket.room.id);
 
+        console.log('Room created successfully', room.roomCode);
         callback({ success: true, room: room });
-        console.log('Room created: ', room);
-
-        // Update to clients
-        io.sockets
-            .in(socket.room)
-            .emit('update_room_to_client', { success: true, room: room });
     });
 
-    // Join to game room
-    socket.on('join_game_room_to_server', function (data, callback) {
-        const roomCode = data['roomCode'];
-        const room = gameRooms.find((room) => room.roomCode === roomCode);
+    // Join player to room (from player)
+    socket.on(
+        'player_join_to_room_to_server',
+        function ({ roomCode }, callback) {
+            const room = gameRooms.find((room) => room.roomCode === roomCode);
+            const player = players[socket.id];
+
+            console.log(player, ' try to join room ', room);
+
+            // If player not found
+            if (!player) {
+                callback({
+                    success: false,
+                    code: 400,
+                    message: 'A játékost nem sikerült beazonosítani'
+                });
+                return;
+            }
+
+            // If room ID is valid, then try to join the room
+            if (!room) {
+                callback({
+                    success: false,
+                    code: 401,
+                    message: 'A szoba nem található'
+                });
+                return;
+            }
+
+            // Check player is banned
+            if (player.isBannedFromRoom(room)) {
+                callback({
+                    success: false,
+                    code: 402,
+                    message: 'Ki lettél dobva a játékból'
+                });
+                return;
+            }
+
+            // Check if player already in the room
+            if (player.isPlayerInRoom(room)) {
+                callback({
+                    success: false,
+                    code: 403,
+                    message: 'Már csatlakoztál a szobához'
+                });
+                return;
+            }
+
+            // Remove player from all other game rooms first
+            player.removeFromAllRooms(gameRooms);
+
+            // Now join to room
+            socket.room = room;
+            socket.join(socket.room.id);
+
+            room.addPlayer(player);
+            player.setRoom(socket.room);
+
+            console.log(
+                socket.playerName + ' joined game room ' + socket.room.roomCode
+            );
+
+            callback({ success: true, room: room, player: player });
+
+            io.sockets
+                .in(socket.room.id)
+                .emit('player_joined_to_room_to_client', {
+                    success: true,
+                    room: room,
+                    player: player
+                });
+        }
+    );
+
+    // Player status (ready for game or not, from player)
+    socket.on('player_is_ready_to_server', function ({ ready }, callback) {
         const player = players[socket.id];
-
-        console.log(player, ' try to join room ', room);
-
-        // If player not found
-        if (!player) {
-            callback({
-                success: false,
-                code: 400,
-                message: 'A játékost nem sikerült beazonosítani'
-            });
-            return;
-        }
-
-        // If room ID is valid, then try to join the room
-        if (!room) {
-            callback({
-                success: false,
-                code: 401,
-                message: 'A szoba nem található'
-            });
-            return;
-        }
-
-        // Check player is banned
-        if (player.isBannedFromRoom(room)) {
-            callback({
-                success: false,
-                code: 402,
-                message: 'Ki lettél dobva a játékból'
-            });
-            return;
-        }
-
-        // Check if player already in the room
-        if (player.isPlayerInRoom(room)) {
-            callback({
-                success: false,
-                code: 403,
-                message: 'Már csatlakoztál a szobához'
-            });
-            return;
-        }
-
-        // Remove player from all other game rooms first
-        player.removeFromAllRooms(gameRooms);
-
-        // Now join
-        socket.room = room.roomCode;
-        socket.join(socket.room);
-
-        room.addPlayer(player);
-        player.room = socket.room;
-
-        console.log(socket.playerName + ' joined game room ' + socket.room);
-
-        callback({ success: true, room: room, player: player });
-
-        io.sockets
-            .in(socket.room)
-            .emit('update_room_to_client', { success: true, room: room });
-    });
-
-    // Player status (ready for game or not)
-    socket.on('player_ready_to_server', function (data, callback) {
-        const player = players[socket.id];
-        const ready = data['ready'];
-
-        console.log(player, ' try to set ready for');
 
         // If player not found
         if (!player) {
@@ -379,28 +244,276 @@ io.sockets.on('connection', function (socket) {
 
         // Set player in room
         const room = player.getRoom(gameRooms);
+
+        console.log('rooms', gameRooms);
+
+        // If room not found
+        if (!room) {
+            callback({
+                success: false,
+                code: 401,
+                message: 'A szobát nem találom'
+            });
+            return;
+        }
+
         room.setPlayer(player);
         room.checkEverybodyIn();
 
+        // Send to player who is pressed the ready button
         callback({ success: true, room: room, player: player });
 
-        io.sockets.in(socket.room).emit('update_room_to_client', {
+        console.log(player.playerName, 'is ready at room', room.roomCode);
+
+        // Send to others
+        io.sockets.in(socket.room.id).emit('player_is_ready_to_client', {
             success: true,
+            room: room,
+            player
+        });
+    });
+
+    // Everybody in, start game (from player)
+    socket.on('start_game_to_server', function (data, callback) {
+        const player = players[socket.id];
+
+        // If player not found
+        if (!player) {
+            callback({
+                success: false,
+                code: 400,
+                message: 'A játékost nem sikerült beazonosítani'
+            });
+            return;
+        }
+
+        const room = player.getRoom(gameRooms);
+
+        console.log('Start game', room);
+
+        // Check all players are ready
+        if (!room.checkEverybodyIn()) {
+            // Not ready players
+            const playersNotReady = room.players.filter(
+                (player) => !player.ready
+            );
+
+            console.log('Not all players are ready', playersNotReady);
+
+            callback({
+                success: false,
+                code: 400,
+                message: playersNotReady.length + ' játékos még nem áll készen',
+                room: room,
+                player: player
+            });
+        }
+
+        // Game is started
+        console.log('Game started successfully', room);
+        room.startRoom();
+        callback({ success: true, room: room, player: player });
+
+        // Send game is started to others
+        io.sockets.in(socket.room.id).emit('game_started_to_client', {
+            success: true,
+            room: room,
+            player: player
+        });
+    });
+
+    // Get categories (from room)
+    socket.on('get_categories_to_server', async function (data, callback) {
+        const room = socket.room;
+
+        // Find room of socket
+        if (!room) {
+            console.log('Room not found in socket');
+            callback({
+                success: false,
+                message: 'A szoba nem létezik'
+            });
+            return;
+        }
+
+        // Room is already waiting for choose category by player
+        if (room.waitingForChooseCategory) {
+            console.log('Room already has categories', room.categories);
+            callback({
+                success: true,
+                categories: room.categories,
+                room: room
+            });
+            return;
+        }
+
+        // Get for choosing
+        console.log('Get categories for room', room.roomCode);
+        const categories = await categoriesInstance.getCategoriesForChoosing();
+
+        // Select category set room properties
+        console.log('Categories queried for choosing', categories);
+        room.openSelectCategory(categories);
+
+        callback({ success: true, room: room });
+
+        // Send categories to others
+        io.sockets
+            .in(socket.room.id)
+            .emit('waiting_for_choose_category_to_client', {
+                success: true,
+                categories: categories,
+                room: room
+            });
+    });
+
+    // Select category (from player)
+    socket.on('select_category_to_server', function ({ category }, callback) {
+        const player = players[socket.id];
+
+        // If player not found
+        if (!player) {
+            console.log(
+                'Failed to choose category by player. The player not found'
+            );
+            callback({
+                success: false,
+                code: 400,
+                message: 'A játékost nem sikerült beazonosítani'
+            });
+            return;
+        }
+
+        const room = player.getRoom(gameRooms);
+
+        // Detect room is exists
+        if (!room) {
+            console.log(
+                'Failed to choose category by player. Room not found in socket'
+            );
+            callback({
+                success: false,
+                message: 'A szoba nem létezik'
+            });
+            return;
+        }
+
+        // If room doesn't need to choose category
+        if (!room.waitingForChooseCategory) {
+            console.log('Room not needed to choose category');
+            callback({
+                success: false,
+                message: 'A kategória már kiválasztásra került'
+            });
+            return;
+        }
+
+        // Select category
+        console.log('Select category', category);
+        room.selectCategory(category);
+
+        callback({ success: true, room: room, category: category });
+
+        // Send the selected categories to others
+        io.sockets.in(socket.room.id).emit('on_choose_category_to_client', {
+            success: true,
+            category: category,
             room: room
         });
     });
 
-    // Everybody in, start game
-    socket.on('everybody_in_to_server', function (data, callback) {});
+    // Get fact after choose category, and countdown until all players answered (from room)
+    socket.on('get_fact_to_server', async function ({ category }, callback) {
+        const room = socket.room;
 
-    socket.on('get_fact_to_server', async function (data, callback) {
-        const factId = await redisClient.randomkey();
-        const fact = await redisClient.get(factId);
+        // Find room of socket
+        if (!room) {
+            console.log('Room not found in socket');
+            callback({
+                success: false,
+                message: 'A szoba nem létezik'
+            });
+            return;
+        }
 
-        console.log('Fact queried ', fact);
+        // Find the fact in category
+        console.log('Find fact for category', category);
+        const fact = await Fact.findOne({ category: category }).exec();
+        room.setFact(fact);
+        console.log('Set fact', fact);
+
+        callback({ success: true, fact: fact, room: room });
 
         // Send to all clients
-        io.sockets.in(socket.room).emit('send_fact_to_client', { fact: fact });
+        io.sockets.in(socket.room.id).emit('send_fact_to_client', {
+            success: true,
+            room: room,
+            fact: fact
+        });
+
+        // Set timeout to type answers by the players
+        setTimeout(() => {
+            room.waitingForTypeAnswers = true;
+            io.sockets
+                .in(socket.room.id)
+                .emit('timeout_to_type_answers_to_client', {
+                    success: true,
+                    room: room
+                });
+        }, room.playersTimeToAnswer);
+    });
+
+    // Send player answer to server (from player)
+    socket.on('send_player_answer_to_server', function ({ answer }, callback) {
+        const player = players[socket.id];
+
+        // If player not found
+        if (!player) {
+            console.log(
+                'Failed to send player answer to server. The player not found'
+            );
+            callback({
+                success: false,
+                code: 400,
+                message: 'A játékost nem sikerült beazonosítani'
+            });
+            return;
+        }
+
+        const room = player.getRoom(gameRooms);
+
+        // Detect room is exists
+        if (!room) {
+            console.log(
+                'Failed to send player answer to server. Room not found in socket'
+            );
+            callback({
+                success: false,
+                message: 'A szoba nem létezik'
+            });
+            return;
+        }
+
+        // Set player answer at room
+        players[socket.id] = room.setPlayerAnswer(player, answer);
+        console.log('Set room', room);
+
+        // Send answers to clients
+        const roomPlayers = room.getPlayers();
+        console.log('Send players in room', roomPlayers);
+
+        callback({
+            success: true,
+            players: roomPlayers,
+            room: room
+        });
+
+        // Send answered players to room / others
+        io.sockets.in(socket.room.id).emit('on_player_sent_answer_to_client', {
+            success: true,
+            players: roomPlayers,
+            room: room
+        });
     });
 
     socket.on('kick_player', function (data) {
@@ -422,7 +535,7 @@ io.sockets.on('connection', function (socket) {
         socketOfPlayerToKick.leave(socketOfPlayerToKick.room);
 
         io.sockets
-            .in(socket.room)
+            .in(socket.room.id)
             .emit('update_active_players_to_client', { room: room });
         socketOfPlayerToKick.emit('update_active_players_to_client', {
             room: room
@@ -456,10 +569,10 @@ io.sockets.on('connection', function (socket) {
             callback({ success: true });
 
             io.sockets
-                .in(socket.room)
+                .in(socket.room.id)
                 .emit('update_active_players_to_client', { room: room });
             io.sockets
-                .in(socket.room)
+                .in(socket.room.id)
                 .emit('update_banned_players_to_client', { room: room });
 
             // TEST this
