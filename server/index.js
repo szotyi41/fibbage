@@ -516,6 +516,39 @@ io.sockets.on('connection', function (socket) {
         });
     });
 
+    // After all players type their answers, get answers thay can choose (from room)
+    socket.on('get_choosable_answers_to_server', function (data, callback) {
+        const room = socket.room;
+
+        // Find room of socket
+        if (!room) {
+            console.log('Room not found in socket');
+            callback({
+                success: false,
+                message: 'A szoba nem létezik'
+            });
+            return;
+        }
+
+        console.log('Get random answers');
+        const answers = room.getAnswersToChoose();
+        console.log('Random answers queried', answers);
+
+        // Send back to room
+        callback({
+            success: true,
+            answers: answers,
+            room: room
+        });
+
+        // Send choosable answers to players also
+        io.sockets.in(socket.room.id).emit('send_choosable_answers_to_client', {
+            success: true,
+            answers: answers,
+            room: room
+        });
+    });
+
     socket.on('kick_player', function (data) {
         var roomId = data['roomId'];
         var playerId = data['playerId'];

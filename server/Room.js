@@ -7,7 +7,10 @@ class Room {
         this.bannedPlayers = [];
         this.maxPlayers = Number.POSITIVE_INFINITY;
         this.round = 0;
+
+        // Rules
         this.playersTimeToAnswer = 1000 * 20;
+        this.choosableAnswersNumber = 6;
 
         // Joining progress
         this.started = false;
@@ -35,6 +38,9 @@ class Room {
             answer: '',
             answered: false
         }));
+
+        // Set answers to choose by players
+        this.answers = [];
     }
 
     // Start room
@@ -133,6 +139,37 @@ class Room {
     // After set the answer, get players to know who answer what
     getPlayers() {
         return this.players;
+    }
+
+    // Get the answers player can choose after type their lies
+    getAnswersToChoose() {
+        const playerAnswers = this.players.map((player) => player.answer);
+        const correctAnswer = this.fact.correct;
+        const recommendedAnswers = this.fact.recommended;
+
+        console.log('Use fact answers', recommendedAnswers);
+
+        // Answers must include
+        let answersToChoose = [correctAnswer, ...playerAnswers];
+
+        do {
+            // Random answer index from recommended
+            const answerIndex = Math.floor(
+                Math.random() * recommendedAnswers.length
+            );
+
+            // Get recommended answer
+            const recommendedAnswer = recommendedAnswers[answerIndex];
+
+            // If the recommended answer not already in answers to choose
+            if (!answersToChoose.includes(recommendedAnswer)) {
+                answersToChoose.push(recommendedAnswer);
+            }
+        } while (answersToChoose.length < this.choosableAnswersNumber);
+
+        this.answers = answersToChoose;
+
+        return answersToChoose;
     }
 
     banPlayer(player) {
