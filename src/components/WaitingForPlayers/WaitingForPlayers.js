@@ -2,13 +2,40 @@ import { BrowserRouter as Router, Switch, Route } from 'react-router-dom';
 
 import AskGameRoom from './AskGameRoom';
 import AskPlayerName from './AskPlayerName';
-import JoinedPlayerList from './JoinedPlayerList';
+import JoinedListPlayer from './JoinedListPlayer';
+import JoinedListRoom from './JoinedListRoom';
 import JoinedPlayer from './JoinedPlayer';
 import ShowGameRoom from './ShowGameRoom';
-import EverybodyIn from './EverybodyIn';
+import EverybodyInButtonPlayer from './EverybodyInButtonPlayer';
+import { useEffect } from 'react';
 
 const WaitingForPlayers = (props) => {
-    const { player } = props;
+    const { player, room, setRoom } = props;
+
+    useEffect(() => console.log('Room is: ', room), [room]);
+
+    const waitingForStartGame = () => {
+        console.log('Waiting for start the game');
+
+        // Waiting for start the game by player
+        window.socket.on(
+            'game_started_to_client',
+            ({ success, message, room, player }) => {
+                // Failed to start the game
+                if (!success) {
+                    console.log('Start the game', message);
+                    return;
+                }
+
+                // Player is started the game
+                console.log('Player', player, 'is started the game', room);
+                setRoom(room);
+            }
+        );
+    };
+
+    // Waiting for start the game
+    useEffect(waitingForStartGame, [setRoom]);
 
     return (
         <div className="waiting-for-players-content">
@@ -18,7 +45,7 @@ const WaitingForPlayers = (props) => {
                     <Route path="/room">
                         <div className="room-screen">
                             <ShowGameRoom {...props}></ShowGameRoom>
-                            <JoinedPlayerList {...props}></JoinedPlayerList>
+                            <JoinedListRoom {...props}></JoinedListRoom>
                         </div>
                     </Route>
 
@@ -37,7 +64,7 @@ const WaitingForPlayers = (props) => {
                                         <JoinedPlayer {...props}></JoinedPlayer>
                                     </div>
 
-                                    {!player.room ? (
+                                    {!room.roomCode ? (
                                         /* Ask for room code */
                                         <div className="enter-room-code-section">
                                             <AskGameRoom
@@ -47,13 +74,13 @@ const WaitingForPlayers = (props) => {
                                     ) : (
                                         /* Players in you room */
                                         <div className="already-joined-players-section">
-                                            <JoinedPlayerList
+                                            <JoinedListPlayer
                                                 {...props}
-                                            ></JoinedPlayerList>
+                                            ></JoinedListPlayer>
 
-                                            <EverybodyIn
+                                            <EverybodyInButtonPlayer
                                                 {...props}
-                                            ></EverybodyIn>
+                                            ></EverybodyInButtonPlayer>
                                         </div>
                                     )}
                                 </div>

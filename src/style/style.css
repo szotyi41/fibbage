@@ -231,6 +231,19 @@ h2 {
   margin-top: 16px;
 }
 
+.grow-to-screen-middle {
+  -webkit-transition: all 400ms cubic-bezier(0.47, 1.64, 0.41, 0.8);
+  transition: all 400ms cubic-bezier(0.47, 1.64, 0.41, 0.8);
+}
+
+.grow-to-screen-middle.grow {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  -webkit-transform: translate(-50%, -50%);
+          transform: translate(-50%, -50%);
+}
+
 .waiting-for-players-content {
   display: -webkit-box;
   display: -ms-flexbox;
@@ -390,8 +403,6 @@ h2 {
   border-radius: 8px;
   border: none;
   font-size: 36px;
-  -webkit-transition: all 0.4s;
-  transition: all 0.4s;
   background-color: #000;
   color: #fff;
   padding: 16px 48px;

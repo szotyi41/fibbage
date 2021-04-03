@@ -10,14 +10,14 @@ friends to get the most score.
 3. Players: Join to room
 4. Player, Room: Waiting for other players
 5. Player: Send players are ready
-6. Player: Press everybody in
+6. Player: Press everybody are ready
 
 # Game progress
 
-1. Player: First player choose theme
+1. Player: First player choose category
 2. Room: The fact show on screen
 3. Players: Must type their lies
-4. Room: Show potential answers
+4. Room: Show recommended answers
 5. Players: Select the answer which is look like correct
 6. Room: Show scams (Who believe to who?)
 7. Room: Show the truth
@@ -38,7 +38,21 @@ cd ./server
 nodemon index.js
 ```
 
-Dependecies:
+# Dependecies
 
--   redis for database
+-   mongodb for database
 -   npm nodejs for the server side
+
+# Components
+
+Waiting for players.js
+
+| Room | ShowGameRoom, JoinedListRoom | | Player | AskRoomCodePlayer,
+AskNamePlayer, JoinedPlayer, JoinedListPlayer, EverybodyInButtonPlayer |
+
+Game.js
+
+| Room | CategoryChooseRoom | ShowFactRoom, ShowPlayersAnsweredRoom |
+ShowFactRoom, ShowAnswersRoom | | Player | CategoryChoosePlayer |
+ShowFactPlayer, ShowFactRoom, TypeYourAnswerPlayer | ShowFactPlayer,
+ShowAnswersPlayer |

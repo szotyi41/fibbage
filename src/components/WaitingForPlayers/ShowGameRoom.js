@@ -12,7 +12,7 @@ const ShowGameRoom = ({ room, setRoom }) => {
             setRoom(data.room);
             console.log('Room created: ', data.room);
         });
-    }, []);
+    }, [setRoom]);
 
     return (
         <div className="room-code-section">

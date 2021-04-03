@@ -1,7 +1,7 @@
 const JoinedPlayer = ({ player, setPlayer }) => {
     return (
         <div className="player-profile">
-            <img></img>
+            <img alt=""></img>
             <div className="player-name">{player.playerName}</div>
         </div>
     );

@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
-const AskPlayerName = ({ room, setRoom, player, setPlayer }) => {
-    const [playerName, setPlayerName] = useState('');
+const AskNamePlayer = ({ setRoom, setPlayer }) => {
+    const [playerName, setPlayerName] = useState('Péter');
     const [joiningPlayer, setJoiningPlayer] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
 
+    /* Send player name to server */
     const sendPlayerName = (playerName) => {
         console.log('Send player name to server: ', playerName);
         setJoiningPlayer(true);
@@ -12,23 +14,24 @@ const AskPlayerName = ({ room, setRoom, player, setPlayer }) => {
             {
                 playerName: playerName
             },
-            (data) => {
+            ({ success, message, room, player }) => {
                 setJoiningPlayer(false);
-                if (!data.success) {
-                    console.log('Failed to connect player: ', data.message);
+
+                // Failed to set player name
+                if (!success) {
+                    setErrorMessage(message);
+                    console.log('Failed to connect player', message);
                     return;
                 }
-                console.log(
-                    'Player is logged in',
-                    data.player,
-                    ' to room ',
-                    data.room
-                );
-                setPlayer(data.player);
+
+                // Player successfully joined to room
+                console.log('Player is connected', player);
+                setPlayer(player);
+                setErrorMessage('');
 
                 // If you already joined to room, rejoin
-                if (typeof data.room !== 'undefined') {
-                    setRoom(data.room);
+                if (typeof room !== 'undefined') {
+                    setRoom(room);
                 }
             }
         );
@@ -44,6 +47,8 @@ const AskPlayerName = ({ room, setRoom, player, setPlayer }) => {
                 onInput={(event) => setPlayerName(event.target.value)}
                 placeholder="Írd be a neved"
             />
+
+            <div className="error-message">{errorMessage}</div>
 
             {/* Loading spinner or send player name button */}
             {joiningPlayer ? (
@@ -63,4 +68,4 @@ const AskPlayerName = ({ room, setRoom, player, setPlayer }) => {
     );
 };
 
-export default AskPlayerName;
+export default AskNamePlayer;

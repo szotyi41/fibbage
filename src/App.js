@@ -1,28 +1,12 @@
-import React, { useEffect, useState } from 'react';
-
-import './style/style.css';
-
+import React, { useState } from 'react';
+import Game from './components/Game/Game';
 import WaitingForPlayers from './components/WaitingForPlayers/WaitingForPlayers';
-import Game from './components/Game';
+import './style/style.css';
 
 function App() {
     const [players, setPlayers] = useState([]);
     const [player, setPlayer] = useState({});
     const [room, setRoom] = useState({});
-    const [display] = useState(false);
-
-    const getFact = () => {
-        if (!display) return;
-        console.log('Get fact');
-        window.socket.emit('get_fact_to_server', (data) => {
-            if (!data.success) {
-                console.log('Not success');
-                return;
-            }
-        });
-    };
-
-    useEffect(getFact, [room]);
 
     return (
         <div className="App">

@@ -1,0 +1,10 @@
+.grow-to-screen-middle {
+    transition: all 400ms cubic-bezier(0.47, 1.64, 0.41, 0.8);
+
+    &.grow {
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+    }
+}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
-const EverybodyIn = (props) => {
-    const { player, setPlayer, room, setRoom, players, setPlayers } = props;
+const EverybodyInButtonPlayer = (props) => {
+    const { player, setPlayer, room, setRoom, players } = props;
     const [notReadyPlayers, setNotReadyPlayers] = useState([]);
     const [errorMessage, setErrorMessage] = useState('');
     const [sendingPlayerIsReady, setSendingPlayerIsReady] = useState(false);
@@ -17,41 +17,54 @@ const EverybodyIn = (props) => {
         console.log('Start send player is ready: ', ready);
         setSendingPlayerIsReady(true);
         window.socket.emit(
-            'player_ready_to_server',
+            'player_is_ready_to_server',
             {
                 ready: ready
             },
-            (data) => {
+            ({ success, message, room, player }) => {
                 setSendingPlayerIsReady(false);
-                if (!data.success) {
-                    setErrorMessage(data.message);
-                    console.log('Failed to set ready status: ', data.message);
+
+                // Failed to set player status to ready
+                if (!success) {
+                    setErrorMessage(message);
+                    console.log('Failed to set ready status: ', message);
                     return;
                 }
-                console.log('Player is ready for the game', data.player);
+
+                // Player is ready for the game
+                console.log('Player is ready for the game', player);
                 setErrorMessage('');
-                setRoom(data.room);
-                setPlayer(data.player);
+                setRoom(room);
+                setPlayer(player);
             }
         );
     };
 
-    /* Send everybody in to server */
+    /* Send everybody in to server when all players are ready */
     const sendEverybodyIn = () => {
-        console.log('Start send everybody in');
+        console.log('Start send everybody in for room', room);
+
         setSendingEverybodyIn(true);
-        window.socket.emit('everybody_in_to_server', (data) => {
-            setSendingEverybodyIn(false);
-            if (!data.success) {
-                setErrorMessage(data.message);
-                console.log('Failed to set everybody in: ', data.message);
-                return;
+        window.socket.emit(
+            'start_game_to_server',
+            {},
+            ({ success, message, room, player }) => {
+                setSendingEverybodyIn(false);
+
+                // Failed to send start game
+                if (!success) {
+                    setErrorMessage(message);
+                    console.log('Failed to set everybody in: ', message);
+                    return;
+                }
+
+                // Start game successfully
+                console.log('You started the game', room);
+                setErrorMessage('');
+                setRoom(room);
+                setPlayer(player);
             }
-            console.log('Start game, everybody in');
-            setErrorMessage('');
-            setRoom(data.room);
-            setPlayer(data.player);
-        });
+        );
     };
 
     return (
@@ -107,4 +120,4 @@ const EverybodyIn = (props) => {
     );
 };
 
-export default EverybodyIn;
+export default EverybodyInButtonPlayer;

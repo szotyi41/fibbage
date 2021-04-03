@@ -1,30 +1,35 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
-const AskGameRoom = (props) => {
-    const { player, setPlayer, room, setRoom } = props;
-    const [roomCode, setRoomCode] = useState('');
+const AskRoomCodePlayer = (props) => {
+    const { setPlayer, setRoom } = props;
+    const [roomCode, setRoomCode] = useState('code');
     const [errorMessage, setErrorMessage] = useState('');
     const [joiningGameRoom, setJoiningGameRoom] = useState(false);
 
+    /* Join player to room with room code */
     const joinToRoom = (roomCode) => {
         console.log('Try to join room: ', roomCode);
         setJoiningGameRoom(true);
         window.socket.emit(
-            'join_game_room_to_server',
+            'player_join_to_room_to_server',
             {
                 roomCode: roomCode
             },
-            (data) => {
+            ({ success, message, room, player }) => {
                 setJoiningGameRoom(false);
-                if (!data.success) {
-                    setErrorMessage(data.message);
-                    console.log('Failed to connect room: ', data.message);
+
+                // Failed to join room
+                if (!success) {
+                    setErrorMessage(message);
+                    console.log('Failed to join room', message);
                     return;
                 }
-                console.log('Player is successfully joined to room', data.room);
+
+                // Player successfully joined
+                console.log(player, 'is successfully joined to room', room);
                 setErrorMessage('');
-                setRoom(data.room);
-                setPlayer(data.player);
+                setRoom(room);
+                setPlayer(player);
             }
         );
     };
@@ -63,4 +68,4 @@ const AskGameRoom = (props) => {
     );
 };
 
-export default AskGameRoom;
+export default AskRoomCodePlayer;

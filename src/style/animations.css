@@ -1,0 +1,13 @@
+.grow-to-screen-middle {
+  -webkit-transition: all 400ms cubic-bezier(0.47, 1.64, 0.41, 0.8);
+  transition: all 400ms cubic-bezier(0.47, 1.64, 0.41, 0.8);
+}
+
+.grow-to-screen-middle.grow {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  -webkit-transform: translate(-50%, -50%);
+          transform: translate(-50%, -50%);
+}
+/*# sourceMappingURL=animations.css.map */
