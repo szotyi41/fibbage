@@ -47,12 +47,14 @@ nodemon index.js
 
 Waiting for players.js
 
-| Room | ShowGameRoom, JoinedListRoom | | Player | AskRoomCodePlayer,
-AskNamePlayer, JoinedPlayer, JoinedListPlayer, EverybodyInButtonPlayer |
+|        | Join to room section                                                                      |
+| ------ | ----------------------------------------------------------------------------------------- |
+| Room   | ShowGameRoom, JoinedListRoom                                                              |
+| Player | AskRoomCodePlayer, AskNamePlayer, JoinedPlayer, JoinedListPlayer, EverybodyInButtonPlayer |
 
 Game.js
 
-| Room | CategoryChooseRoom | ShowFactRoom, ShowPlayersAnsweredRoom |
-ShowFactRoom, ShowAnswersRoom | | Player | CategoryChoosePlayer |
-ShowFactPlayer, ShowFactRoom, TypeYourAnswerPlayer | ShowFactPlayer,
-ShowAnswersPlayer |
+|        | Choose category      | Type your answer                                   | Show recommended answers          |
+| ------ | -------------------- | -------------------------------------------------- | --------------------------------- |
+| Room   | CategoryChooseRoom   | ShowFactRoom, ShowPlayersAnsweredRoom              | ShowFactRoom, ShowAnswersRoom     |
+| Player | CategoryChoosePlayer | ShowFactPlayer, ShowFactRoom, TypeYourAnswerPlayer | ShowFactPlayer, ShowAnswersPlayer |
