@@ -422,6 +422,7 @@ io.sockets.on('connection', function (socket) {
         });
     });
 
+    // Todo in client side time is up
     // Get fact after choose category, and countdown until all players answered (from room)
     socket.on('get_fact_to_server', async function ({ category }, callback) {
         const room = socket.room;
@@ -442,25 +443,33 @@ io.sockets.on('connection', function (socket) {
         room.setFact(fact);
         console.log('Set fact', fact);
 
-        callback({ success: true, fact: fact, room: room });
+        callback({
+            success: true,
+            fact: fact,
+            room: room,
+            time: room.playersTimeToTypeAnswer
+        });
 
         // Send to all clients
         io.sockets.in(socket.room.id).emit('send_fact_to_client', {
             success: true,
             room: room,
-            fact: fact
+            fact: fact,
+            time: room.playersTimeToTypeAnswer
         });
 
         // Set timeout to type answers by the players
         setTimeout(() => {
-            room.waitingForTypeAnswers = true;
+            // Time is up to type answers by players
+            room.timeIsUpTypeAnswer();
+
             io.sockets
                 .in(socket.room.id)
                 .emit('timeout_to_type_answers_to_client', {
                     success: true,
                     room: room
                 });
-        }, room.playersTimeToAnswer);
+        }, room.playersTimeToTypeAnswer * 1000);
     });
 
     // Send player answer to server (from player)
@@ -495,7 +504,7 @@ io.sockets.on('connection', function (socket) {
         }
 
         // Set player answer at room
-        players[socket.id] = room.setPlayerAnswer(player, answer);
+        room.setPlayerAnswer(player, answer);
         console.log('Set room', room);
 
         // Send answers to clients
@@ -505,6 +514,7 @@ io.sockets.on('connection', function (socket) {
         callback({
             success: true,
             players: roomPlayers,
+            player: player,
             room: room
         });
 
@@ -512,6 +522,7 @@ io.sockets.on('connection', function (socket) {
         io.sockets.in(socket.room.id).emit('on_player_sent_answer_to_client', {
             success: true,
             players: roomPlayers,
+            player: player,
             room: room
         });
     });
@@ -538,16 +549,96 @@ io.sockets.on('connection', function (socket) {
         callback({
             success: true,
             answers: answers,
-            room: room
+            room: room,
+            time: room.playersTimeToChooseAnswer
         });
 
         // Send choosable answers to players also
         io.sockets.in(socket.room.id).emit('send_choosable_answers_to_client', {
             success: true,
             answers: answers,
-            room: room
+            room: room,
+            time: room.playersTimeToChooseAnswer
         });
+
+        // Set timeout to choose answers by the players
+        setTimeout(() => {
+            // Time is up to choose answers by players
+            room.timeIsUpChooseAnswer();
+
+            const players = room.getPlayers();
+
+            io.sockets
+                .in(socket.room.id)
+                .emit('send_timeout_to_choose_answers_to_client', {
+                    success: true,
+                    room: room,
+                    players: players
+                });
+        }, room.playersTimeToChooseAnswer * 1000);
     });
+
+    // On player choose answer (from player)
+    socket.on(
+        'send_player_choosed_answer_to_server',
+        function ({ answer }, callback) {
+            let player = players[socket.id];
+
+            // If player not found
+            if (!player) {
+                console.log(
+                    'Failed to choose player answer to server. The player not found'
+                );
+                callback({
+                    success: false,
+                    code: 400,
+                    message: 'A játékost nem sikerült beazonosítani'
+                });
+                return;
+            }
+
+            const room = player.getRoom(gameRooms);
+
+            // Detect room is exists
+            if (!room) {
+                console.log(
+                    'Failed to choose player answer to server. Room not found in socket'
+                );
+
+                callback({
+                    success: false,
+                    message: 'A szoba nem létezik'
+                });
+
+                return;
+            }
+
+            // Set player answer at room
+            player = room.choosePlayerAnswer(player, answer);
+            players[socket.id] = player;
+            console.log('Set answer at room', room);
+
+            // Send answers to clients
+            const roomPlayers = room.getPlayers();
+            console.log('Send players in room', roomPlayers);
+
+            callback({
+                success: true,
+                players: roomPlayers,
+                player: player,
+                room: room
+            });
+
+            // Send answered players to room / others
+            io.sockets
+                .in(socket.room.id)
+                .emit('send_player_choosed_answer_to_client', {
+                    success: true,
+                    players: roomPlayers,
+                    room: room
+                });
+        }
+    );
 
     socket.on('kick_player', function (data) {
         var roomId = data['roomId'];

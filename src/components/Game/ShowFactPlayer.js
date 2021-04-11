@@ -22,16 +22,38 @@ const ShowFactPlayer = (props) => {
         <div>
             <h1>{fact.fact}</h1>
 
-            {room.waitingForTypeAnswers ? (
-                /* Type your answer */
-                !player.answered ? (
-                    <TypeYourAnswerPlayer {...props}></TypeYourAnswerPlayer>
+            <div>
+                {room.waitingForTypeAnswers ? (
+                    <div>
+                        {/* Type your answer */}
+                        {!player.answered ? (
+                            <TypeYourAnswerPlayer
+                                {...props}
+                            ></TypeYourAnswerPlayer>
+                        ) : (
+                            <h1>Várakozás a többi játékos válaszára</h1>
+                        )}
+                    </div>
                 ) : (
-                    <h1>Várj a többi játékos válaszára</h1>
-                )
-            ) : (
-                <ShowAnswersPlayer {...props}></ShowAnswersPlayer>
-            )}
+                    <div>
+                        {/* Waiting for choose answers after everybody type */}
+                        {room.waitingForPlayerChoosing ? (
+                            <div>
+                                {/* Choose your answer */}
+                                {!player.choosed ? (
+                                    <ShowAnswersPlayer
+                                        {...props}
+                                    ></ShowAnswersPlayer>
+                                ) : (
+                                    <h1>Várakozás a többi játékos válaszára</h1>
+                                )}
+                            </div>
+                        ) : (
+                            <div></div>
+                        )}
+                    </div>
+                )}
+            </div>
         </div>
     );
 };

@@ -4,6 +4,8 @@ import CategoryChoosePlayer from './CategoryChoosePlayer.js';
 import CategoryChooseRoom from './CategoryChooseRoom.js';
 import ShowFactRoom from './ShowFactRoom.js';
 import ShowFactPlayer from './ShowFactPlayer.js';
+import ShowResultsPlayer from './ShowResultsPlayer.js';
+import ShowResultsRoom from './ShowResultsRoom.js';
 
 const Game = (props) => {
     const { room } = props;
@@ -20,6 +22,7 @@ const Game = (props) => {
                 <Switch>
                     <Route path="/room">
                         {!room.category ? (
+                            /* Choose category */
                             <CategoryChooseRoom
                                 {...props}
                                 category={category}
@@ -28,17 +31,35 @@ const Game = (props) => {
                                 setCategories={setCategories}
                             ></CategoryChooseRoom>
                         ) : (
-                            <ShowFactRoom
-                                {...props}
-                                fact={fact}
-                                setFact={setFact}
-                                category={category}
-                                setCategory={setCategory}
-                                categories={categories}
-                                setCategories={setCategories}
-                                answers={answers}
-                                setAnswers={setAnswers}
-                            ></ShowFactRoom>
+                            <div>
+                                {!room.showResults ? (
+                                    /* Show fact */
+                                    <ShowFactRoom
+                                        {...props}
+                                        fact={fact}
+                                        setFact={setFact}
+                                        category={category}
+                                        setCategory={setCategory}
+                                        categories={categories}
+                                        setCategories={setCategories}
+                                        answers={answers}
+                                        setAnswers={setAnswers}
+                                    ></ShowFactRoom>
+                                ) : (
+                                    /* Show results */
+                                    <ShowResultsRoom
+                                        {...props}
+                                        fact={fact}
+                                        setFact={setFact}
+                                        category={category}
+                                        setCategory={setCategory}
+                                        categories={categories}
+                                        setCategories={setCategories}
+                                        answers={answers}
+                                        setAnswers={setAnswers}
+                                    ></ShowResultsRoom>
+                                )}
+                            </div>
                         )}
                     </Route>
 
@@ -52,24 +73,36 @@ const Game = (props) => {
                                 setCategories={setCategories}
                             ></CategoryChoosePlayer>
                         ) : (
-                            <ShowFactPlayer
-                                {...props}
-                                fact={fact}
-                                setFact={setFact}
-                                category={category}
-                                setCategory={setCategory}
-                                categories={categories}
-                                setCategories={setCategories}
-                                answers={answers}
-                                setAnswers={setAnswers}
-                            ></ShowFactPlayer>
+                            <div>
+                                {!room.showResults ? (
+                                    <ShowFactPlayer
+                                        {...props}
+                                        fact={fact}
+                                        setFact={setFact}
+                                        category={category}
+                                        setCategory={setCategory}
+                                        categories={categories}
+                                        setCategories={setCategories}
+                                        answers={answers}
+                                        setAnswers={setAnswers}
+                                    ></ShowFactPlayer>
+                                ) : (
+                                    /* Show results */
+                                    <ShowResultsPlayer
+                                        {...props}
+                                        fact={fact}
+                                        setFact={setFact}
+                                        category={category}
+                                        setCategory={setCategory}
+                                        categories={categories}
+                                        setCategories={setCategories}
+                                        answers={answers}
+                                        setAnswers={setAnswers}
+                                    ></ShowResultsPlayer>
+                                )}
+                            </div>
                         )}
                     </Route>
-
-                    {/* <Fact></Fact>
-                    <RecommendedAnswers></RecommendedAnswers>
-                    <YourLie></YourLie>
-                    <PlayerAnswers></PlayerAnswers> */}
                 </Switch>
             </Router>
         </div>

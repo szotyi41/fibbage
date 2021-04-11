@@ -40,4 +40,13 @@
   margin: 8px;
   cursor: pointer;
 }
+
+.recommended-answers .answer.your-answer {
+  opacity: 0.8;
+}
+
+.recommended-answers .answer.your-answer:hover {
+  cursor: default;
+  opacity: 0.8;
+}
 /*# sourceMappingURL=game.css.map */

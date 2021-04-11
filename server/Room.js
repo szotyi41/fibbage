@@ -9,7 +9,8 @@ class Room {
         this.round = 0;
 
         // Rules
-        this.playersTimeToAnswer = 1000 * 20;
+        this.playersTimeToTypeAnswer = 20;
+        this.playersTimeToChooseAnswer = 20;
         this.choosableAnswersNumber = 6;
 
         // Joining progress
@@ -32,15 +33,23 @@ class Room {
         this.fact = {};
         this.waitingForTypeAnswers = false;
 
+        // Choose answer
+        this.waitingForPlayerChoosing = false;
+
+        // Set answers to choosed by players
+        this.answers = [];
+
+        // Show results after everybody choosed their answers
+        this.showResults = false;
+
         // If this is not the first round, remove answers
         this.players = this.players.map((player) => ({
             ...player,
             answer: '',
-            answered: false
+            answered: false,
+            choose: '',
+            choosed: false
         }));
-
-        // Set answers to choose by players
-        this.answers = [];
     }
 
     // Start room
@@ -125,6 +134,7 @@ class Room {
         // If everybody answered in time, set room status
         if (this.checkEverybodyAnswered()) {
             this.waitingForTypeAnswers = false;
+            this.waitingForPlayerChoosing = true;
         }
 
         // Return the current player
@@ -134,6 +144,12 @@ class Room {
     // If everybody answered
     checkEverybodyAnswered() {
         return this.players.every((player) => player.answered);
+    }
+
+    // When time is up to type answers
+    timeIsUpTypeAnswer() {
+        this.waitingForTypeAnswers = true;
+        this.waitingForPlayerChoosing = false;
     }
 
     // After set the answer, get players to know who answer what
@@ -170,6 +186,43 @@ class Room {
         this.answers = answersToChoose;
 
         return answersToChoose;
+    }
+
+    // On player choose answer
+    choosePlayerAnswer(player, choose) {
+        const playerIndex = this.players
+            .map((player) => player.id)
+            .indexOf(player.id);
+
+        player = {
+            ...player,
+            choose: choose,
+            choosed: true
+        };
+
+        // Set player choose
+        this.players[playerIndex] = player;
+
+        // If everybody chooseed in time, set room status
+        if (this.checkEverybodyChoosed()) {
+            this.waitingForPlayerChoosing = false;
+            this.showResults = true;
+        }
+
+        // Return the current player
+        return player;
+    }
+
+    // If everybody answered
+    checkEverybodyChoosed() {
+        return this.players.every((player) => player.choosed);
+    }
+
+    // Time is up to choose answers
+    timeIsUpChooseAnswer() {
+        this.waitingForPlayerChoosing = false;
+        this.waitingForTypeAnswers = false;
+        this.showResults = true;
     }
 
     banPlayer(player) {

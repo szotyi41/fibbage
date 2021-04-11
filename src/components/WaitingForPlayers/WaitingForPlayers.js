@@ -1,7 +1,7 @@
 import { BrowserRouter as Router, Switch, Route } from 'react-router-dom';
 
-import AskGameRoom from './AskGameRoom';
-import AskPlayerName from './AskPlayerName';
+import AskRoomCodePlayer from './AskRoomCodePlayer';
+import AskNamePlayer from './AskNamePlayer';
 import JoinedListPlayer from './JoinedListPlayer';
 import JoinedListRoom from './JoinedListRoom';
 import JoinedPlayer from './JoinedPlayer';
@@ -55,7 +55,7 @@ const WaitingForPlayers = (props) => {
                             {!player.playerName ? (
                                 /* Ask player name */
                                 <div className="enter-player-name-section">
-                                    <AskPlayerName {...props}></AskPlayerName>
+                                    <AskNamePlayer {...props}></AskNamePlayer>
                                 </div>
                             ) : (
                                 /* Player name is set */
@@ -67,9 +67,9 @@ const WaitingForPlayers = (props) => {
                                     {!room.roomCode ? (
                                         /* Ask for room code */
                                         <div className="enter-room-code-section">
-                                            <AskGameRoom
+                                            <AskRoomCodePlayer
                                                 {...props}
-                                            ></AskGameRoom>
+                                            ></AskRoomCodePlayer>
                                         </div>
                                     ) : (
                                         /* Players in you room */
