@@ -8,10 +8,13 @@ import Player from './Player.js';
 import Categories from './Categories.js';
 import Fact from './Fact.js';
 
+import SendPlayerNameToServer from './actions/SendPlayerNameToServer.js';
+import SendPlayerChoosedAnswerToServer from './actions/SendPlayerChoosedAnswerToServer.js';
+
 const categoriesInstance = new Categories();
-var players = {};
-var gameRooms = [];
-var connections = [];
+var globalPlayers = {};
+var globalGameRooms = [];
+var globalConnections = [];
 
 // Initialize express and socket io
 const app = express();
@@ -23,127 +26,123 @@ io.attach(server);
 
 io.sockets.on('connection', function (socket) {
     // This callback runs when a new Socket.IO connection is established.
-    connections.push(socket);
+    globalConnections.push(socket);
 
     // Player input her/his name and press send button (from player)
-    socket.on(
-        'send_player_name_to_server',
-        function ({ playerName }, callback) {
-            // Playername is empty
-            if (!playerName) {
-                callback({
-                    success: false,
-                    message: 'Player name cannot be empty'
-                });
-                return;
-            }
-            socket.playerName = playerName;
-
-            // Check player is already exists
-            const oldPlayerId = Player.isPlayerAlreadyExists(
-                playerName,
-                players
-            );
-
-            // Player not exists yet, create it
-            if (oldPlayerId === false) {
-                const player = new Player(socket.id, socket.playerName);
-                players[player.id] = player;
-                console.log(
-                    playerName + ' joined the server with id ' + socket.id
-                );
-                callback({ success: true, player: player });
-
-                // Send update to all players
-                io.sockets.emit('update_players', players);
-
-                // send game room list to the newly registered client
-                socket.emit('update_game_rooms', { rooms: gameRooms });
-
-                return;
-            }
-
-            // if playerName already exists, then reset the id to the socket id
-            const oldPlayer = players[oldPlayerId];
-            const player = oldPlayer;
-            player.id = socket.id;
-            players[player.id] = player;
-
-            // Delete the old player
-            delete players.oldPlayerId;
-
-            // Update players (like observer)
-            for (var i = 0; i < gameRooms.length; i++) {
-                var room = gameRooms[i];
-
-                // Update players in room
-                for (var i = 0; i < room.players.length; i++) {
-                    var roomPlayer = room.players[i];
-                    if (roomPlayer.playerName === playerName) {
-                        roomPlayer.id = player.id;
-                    }
-                }
-
-                // Update banned players in room
-                for (var i = 0; i < room.bannedPlayers.length; i++) {
-                    var roomPlayer = room.bannedPlayers[i];
-                    if (roomPlayer.playerName === playerName) {
-                        roomPlayer.id = player.id;
-                    }
-                }
-            }
-
-            console.log(
-                playerName + ' rejoined the server with id ' + socket.id
-            );
-
-            // If player is already joined to room
-            if (player.room.id) {
-                const room = gameRooms.find(
-                    (room) => room.roomCode === player.room.roomCode
-                );
-                callback({ success: true, player: player, room: room });
-                return;
-            }
-
-            // New player
-            callback({ success: true, player: player });
+    socket.on('send_player_name_to_server', ({ playerName }, callback) => {
+        // Playername is empty
+        if (!playerName) {
+            callback({
+                success: false,
+                message: 'Player name cannot be empty'
+            });
+            return;
         }
-    );
+
+        console.log('pname', playerName);
+
+        socket.playerName = playerName;
+
+        // Check player is already exists
+        const oldPlayerId = Player.isPlayerAlreadyExists(
+            playerName,
+            globalPlayers
+        );
+
+        // Player not exists yet, create it
+        if (oldPlayerId === false) {
+            const player = new Player(socket.id, socket.playerName);
+            globalPlayers[player.id] = player;
+            console.log(playerName + ' joined the server with id ' + socket.id);
+            callback({ success: true, player: player });
+
+            // Send update to all players
+            io.sockets.emit('update_players', globalPlayers);
+
+            // send game room list to the newly registered client
+            socket.emit('update_game_rooms', { rooms: globalGameRooms });
+
+            return;
+        }
+
+        // if playerName already exists, then reset the id to the socket id
+        const oldPlayer = players[oldPlayerId];
+        const player = oldPlayer;
+        player.id = socket.id;
+        globalPlayers[player.id] = player;
+
+        // Delete the old player
+        delete globalPlayers.oldPlayerId;
+
+        // Update players (like observer)
+        for (var i = 0; i < globalGameRooms.length; i++) {
+            var room = globalGameRooms[i];
+
+            // Update players in room
+            for (var i = 0; i < room.players.length; i++) {
+                var roomPlayer = room.players[i];
+                if (roomPlayer.playerName === playerName) {
+                    roomPlayer.id = player.id;
+                }
+            }
+
+            // Update banned players in room
+            for (var i = 0; i < room.bannedPlayers.length; i++) {
+                var roomPlayer = room.bannedPlayers[i];
+                if (roomPlayer.playerName === playerName) {
+                    roomPlayer.id = player.id;
+                }
+            }
+        }
+
+        console.log(playerName + ' rejoined the server with id ' + socket.id);
+
+        // If player is already joined to room
+        if (player.room.id) {
+            const room = globalGameRooms.find(
+                (room) => room.roomCode === player.room.roomCode
+            );
+            callback({ success: true, player: player, room: room });
+            return;
+        }
+
+        // New player
+        callback({ success: true, player: player });
+    });
 
     // Remove socket from connection, if there is a playerName
     socket.on('disconnect', function (data) {
-        const player = players[socket.id];
+        /* const player = globalPlayers[socket.id];
 
         // Remove this player from all other game rooms' player lists
         if (typeof player !== 'undefined') {
-            player.removeFromAllRooms(gameRooms);
+            player.removeFromAllRooms(globalGameRooms);
         }
 
         // Remove socket connection
-        connections.splice(connections.indexOf(socket), 1);
+        globalConnections.splice(globalConnections.indexOf(socket), 1);
         console.log(
             socket.id,
             'is disconnected: ',
-            connections.length,
-            ' connections remaining'
+            globalConnections.length,
+            ' globalConnections remaining'
         );
 
-        // send update to all players
-        io.sockets.emit('update_players', players);
-        io.sockets.emit('update_game_rooms', { rooms: gameRooms });
+        // send update to all globalPlayers
+        io.sockets.emit('update_globalPlayers', globalPlayers);
+        io.sockets.emit('update_game_rooms', { rooms: globalGameRooms }); */
     });
 
     // Create room and join code (from room)
     socket.on('create_game_room_to_server', function (data, callback) {
         // Make 5 characters room code
         const roomCode = Room.makeRoomCode(5);
-        const roomId = gameRooms.length;
+        const roomId = globalGameRooms.length;
         const room = new Room(roomId, roomCode);
 
         // Join to room
         socket.room = room;
-        gameRooms.push(room);
+        globalGameRooms.push(room);
         socket.join(socket.room.id);
 
         console.log('Room created successfully', room.roomCode);
@@ -154,8 +153,10 @@ io.sockets.on('connection', function (socket) {
     socket.on(
         'player_join_to_room_to_server',
         function ({ roomCode }, callback) {
-            const room = gameRooms.find((room) => room.roomCode === roomCode);
-            const player = players[socket.id];
+            const room = globalGameRooms.find(
+                (room) => room.roomCode === roomCode
+            );
+            const player = globalPlayers[socket.id];
 
             console.log(player, ' try to join room ', room);
 
@@ -200,7 +201,7 @@ io.sockets.on('connection', function (socket) {
             }
 
             // Remove player from all other game rooms first
-            player.removeFromAllRooms(gameRooms);
+            player.removeFromAllRooms(globalGameRooms);
 
             // Now join to room
             socket.room = room;
@@ -227,7 +228,7 @@ io.sockets.on('connection', function (socket) {
 
     // Player status (ready for game or not, from player)
     socket.on('player_is_ready_to_server', function ({ ready }, callback) {
-        const player = players[socket.id];
+        const player = globalPlayers[socket.id];
 
         // If player not found
         if (!player) {
@@ -243,9 +244,9 @@ io.sockets.on('connection', function (socket) {
         player.setReady(ready);
 
         // Set player in room
-        const room = player.getRoom(gameRooms);
+        const room = player.getRoom(globalGameRooms);
 
-        console.log('rooms', gameRooms);
+        console.log('rooms', globalGameRooms);
 
         // If room not found
         if (!room) {
@@ -275,7 +276,7 @@ io.sockets.on('connection', function (socket) {
 
     // Everybody in, start game (from player)
     socket.on('start_game_to_server', function (data, callback) {
-        const player = players[socket.id];
+        const player = globalPlayers[socket.id];
 
         // If player not found
         if (!player) {
@@ -287,23 +288,28 @@ io.sockets.on('connection', function (socket) {
             return;
         }
 
-        const room = player.getRoom(gameRooms);
+        const room = player.getRoom(globalGameRooms);
 
         console.log('Start game', room);
 
-        // Check all players are ready
+        // Check all globalPlayers are ready
         if (!room.checkEverybodyIn()) {
-            // Not ready players
-            const playersNotReady = room.players.filter(
+            // Not ready globalPlayers
+            const globalPlayersNotReady = room.globalPlayers.filter(
                 (player) => !player.ready
             );
 
-            console.log('Not all players are ready', playersNotReady);
+            console.log(
+                'Not all globalPlayers are ready',
+                globalPlayersNotReady
+            );
 
             callback({
                 success: false,
                 code: 400,
-                message: playersNotReady.length + ' játékos még nem áll készen',
+                message:
+                    globalPlayersNotReady.length +
+                    ' játékos még nem áll készen',
                 room: room,
                 player: player
             });
@@ -369,7 +375,7 @@ io.sockets.on('connection', function (socket) {
 
     // Select category (from player)
     socket.on('select_category_to_server', function ({ category }, callback) {
-        const player = players[socket.id];
+        const player = globalPlayers[socket.id];
 
         // If player not found
         if (!player) {
@@ -384,7 +390,7 @@ io.sockets.on('connection', function (socket) {
             return;
         }
 
-        const room = player.getRoom(gameRooms);
+        const room = player.getRoom(globalGameRooms);
 
         // Detect room is exists
         if (!room) {
@@ -423,7 +429,7 @@ io.sockets.on('connection', function (socket) {
     });
 
     // Todo in client side time is up
-    // Get fact after choose category, and countdown until all players answered (from room)
+    // Get fact after choose category, and countdown until all globalPlayers answered (from room)
     socket.on('get_fact_to_server', async function ({ category }, callback) {
         const room = socket.room;
 
@@ -447,7 +453,7 @@ io.sockets.on('connection', function (socket) {
             success: true,
             fact: fact,
             room: room,
-            time: room.playersTimeToTypeAnswer
+            time: room.globalPlayersTimeToTypeAnswer
         });
 
         // Send to all clients
@@ -455,12 +461,14 @@ io.sockets.on('connection', function (socket) {
             success: true,
             room: room,
             fact: fact,
-            time: room.playersTimeToTypeAnswer
+            time: room.globalPlayersTimeToTypeAnswer
         });
 
-        // Set timeout to type answers by the players
-        setTimeout(() => {
-            // Time is up to type answers by players
+        // Function what happening when time is out type answers
+        const onTimeoutTypeAnswer = () => {
+            console.log('Time is out to type answers');
+
+            // Time is up to type answers by globalPlayers
             room.timeIsUpTypeAnswer();
 
             io.sockets
@@ -469,12 +477,18 @@ io.sockets.on('connection', function (socket) {
                     success: true,
                     room: room
                 });
-        }, room.playersTimeToTypeAnswer * 1000);
+        };
+
+        // Set timeout to type answers by the globalPlayers
+        room.timeoutTypeAnswer = setTimeout(
+            onTimeoutTypeAnswer,
+            room.globalPlayersTimeToTypeAnswer * 1000
+        );
     });
 
     // Send player answer to server (from player)
-    socket.on('send_player_answer_to_server', function ({ answer }, callback) {
-        const player = players[socket.id];
+    socket.on('send_player_answer_to_server', ({ answer }, callback) => {
+        let player = globalPlayers[socket.id];
 
         // If player not found
         if (!player) {
@@ -489,7 +503,7 @@ io.sockets.on('connection', function (socket) {
             return;
         }
 
-        const room = player.getRoom(gameRooms);
+        const room = player.getRoom(globalGameRooms);
 
         // Detect room is exists
         if (!room) {
@@ -518,7 +532,7 @@ io.sockets.on('connection', function (socket) {
             room: room
         });
 
-        // Send answered players to room / others
+        // Send answered globalPlayers to room / others
         io.sockets.in(socket.room.id).emit('on_player_sent_answer_to_client', {
             success: true,
             players: roomPlayers,
@@ -527,7 +541,7 @@ io.sockets.on('connection', function (socket) {
         });
     });
 
-    // After all players type their answers, get answers thay can choose (from room)
+    // After all globalPlayers type their answers, get answers thay can choose (from room)
     socket.on('get_choosable_answers_to_server', function (data, callback) {
         const room = socket.room;
 
@@ -553,7 +567,7 @@ io.sockets.on('connection', function (socket) {
             time: room.playersTimeToChooseAnswer
         });
 
-        // Send choosable answers to players also
+        // Send choosable answers to globalPlayers also
         io.sockets.in(socket.room.id).emit('send_choosable_answers_to_client', {
             success: true,
             answers: answers,
@@ -561,28 +575,41 @@ io.sockets.on('connection', function (socket) {
             time: room.playersTimeToChooseAnswer
         });
 
-        // Set timeout to choose answers by the players
-        setTimeout(() => {
-            // Time is up to choose answers by players
+        // Define function what happened on timeout choose answer
+        const onTimeoutChooseAnswer = () => {
+            console.log(
+                'Time is up to choose answers, elapsed time more than',
+                room.playersTimeToChooseAnswer,
+                'secs'
+            );
+
+            // Time is up to choose answers by globalPlayers
             room.timeIsUpChooseAnswer();
 
-            const players = room.getPlayers();
+            // After timeout get globalPlayers (to know who did not choosed)
+            const roomPlayers = room.getPlayers();
 
             io.sockets
                 .in(socket.room.id)
                 .emit('send_timeout_to_choose_answers_to_client', {
                     success: true,
                     room: room,
-                    players: players
+                    players: roomPlayers
                 });
-        }, room.playersTimeToChooseAnswer * 1000);
+        };
+
+        // Set timeout to choose answers by the globalPlayers
+        room.timeoutChooseAnswer = setTimeout(
+            onTimeoutChooseAnswer,
+            room.playersTimeToChooseAnswer * 1000
+        );
     });
 
     // On player choose answer (from player)
     socket.on(
         'send_player_choosed_answer_to_server',
-        function ({ answer }, callback) {
-            let player = players[socket.id];
+        ({ answer }, callback) => {
+            let player = globalPlayers[socket.id];
 
             // If player not found
             if (!player) {
@@ -597,7 +624,7 @@ io.sockets.on('connection', function (socket) {
                 return;
             }
 
-            const room = player.getRoom(gameRooms);
+            const room = player.getRoom(globalGameRooms);
 
             // Detect room is exists
             if (!room) {
@@ -615,8 +642,16 @@ io.sockets.on('connection', function (socket) {
 
             // Set player answer at room
             player = room.choosePlayerAnswer(player, answer);
-            players[socket.id] = player;
+            globalPlayers[socket.id] = player;
             console.log('Set answer at room', room);
+
+            // If everybody chooseed in time, clear timeout choose answer
+            if (room.checkEverybodyChoosed()) {
+                console.log('Everybody choosed in time');
+                room.waitingForPlayerChoosing = false;
+                room.showResults = true;
+                clearTimeout(room.timeoutChooseAnswer);
+            }
 
             // Send answers to clients
             const roomPlayers = room.getPlayers();
@@ -635,84 +670,11 @@ io.sockets.on('connection', function (socket) {
                 .emit('send_player_choosed_answer_to_client', {
                     success: true,
                     players: roomPlayers,
+                    player: player,
                     room: room
                 });
         }
     );
-
-    socket.on('kick_player', function (data) {
-        var roomId = data['roomId'];
-        var playerId = data['playerId'];
-
-        var room = gameRooms[roomId];
-        var playerToKick = players[playerId];
-        var currentPlayer = players[socket.id];
-
-        // if currentPlayer is allowed to kick the playerToKick, then kick
-        if (room.owner.id !== currentPlayer.id) {
-            console.log('Player not allowed to kick');
-            return;
-        }
-
-        room.removePlayer(playerToKick);
-        var socketOfPlayerToKick = findId(connections, playerToKick.id);
-        socketOfPlayerToKick.leave(socketOfPlayerToKick.room);
-
-        io.sockets
-            .in(socket.room.id)
-            .emit('update_active_players_to_client', { room: room });
-        socketOfPlayerToKick.emit('update_active_players_to_client', {
-            room: room
-        });
-
-        io.sockets.emit('update_game_rooms_to_client', { rooms: gameRooms });
-    });
-
-    socket.on('ban_player', function (data, callback) {
-        var roomId = data['roomId'];
-        var playerId = data['playerId'];
-
-        var room = gameRooms[roomId];
-        var playerToBan = players[playerId];
-        var currentPlayer = players[socket.id];
-
-        // if currentPlayer is allowed to ban the playerToBan, then ban
-        if (room.owner.id === currentPlayer.id) {
-            console.log(
-                'banning player ' +
-                    playerToBan.playerName +
-                    ' with id ' +
-                    playerToBan.id
-            );
-            // also have to kick player
-            room.removePlayer(playerToBan);
-            room.banPlayer(playerToBan);
-            var socketOfPlayerToBan = find(connections, playerToBan.id);
-            socketOfPlayerToBan.leave(socketOfPlayerToBan.room);
-            console.log(room);
-            callback({ success: true });
-
-            io.sockets
-                .in(socket.room.id)
-                .emit('update_active_players_to_client', { room: room });
-            io.sockets
-                .in(socket.room.id)
-                .emit('update_banned_players_to_client', { room: room });
-
-            // TEST this
-            console.log(socketOfPlayerToBan);
-            socketOfPlayerToBan.emit('player_banned', { room: room });
-            // socketOfPlayerToBan.emit('update_active_players', { room: room } );
-            // socketOfPlayerToBan.emit('update_banned_players', { room: room } );
-
-            io.sockets.emit('update_game_rooms', { rooms: gameRooms });
-        } else {
-            callback({
-                success: false,
-                message: 'You must own the room to ban a player'
-            });
-        }
-    });
 });
 
 Array.prototype.findId = function (id) {

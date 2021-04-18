@@ -8,6 +8,11 @@ class Room {
         this.maxPlayers = Number.POSITIVE_INFINITY;
         this.round = 0;
 
+        // Set timeout's
+        this.timeoutChooseCategory = {};
+        this.timeoutTypeAnswer = {};
+        this.timeoutChooseAnswer = {};
+
         // Rules
         this.playersTimeToTypeAnswer = 20;
         this.playersTimeToChooseAnswer = 20;
@@ -37,7 +42,7 @@ class Room {
         this.waitingForPlayerChoosing = false;
 
         // Set answers to choosed by players
-        this.answers = [];
+        this.choosedAnswers = [];
 
         // Show results after everybody choosed their answers
         this.showResults = false;
@@ -183,7 +188,7 @@ class Room {
             }
         } while (answersToChoose.length < this.choosableAnswersNumber);
 
-        this.answers = answersToChoose;
+        this.choosedAnswers = answersToChoose;
 
         return answersToChoose;
     }
@@ -202,12 +207,6 @@ class Room {
 
         // Set player choose
         this.players[playerIndex] = player;
-
-        // If everybody chooseed in time, set room status
-        if (this.checkEverybodyChoosed()) {
-            this.waitingForPlayerChoosing = false;
-            this.showResults = true;
-        }
 
         // Return the current player
         return player;

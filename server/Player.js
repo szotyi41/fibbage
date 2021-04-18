@@ -2,8 +2,15 @@ class Player {
     constructor(id, playerName) {
         this.id = id;
         this.playerName = playerName;
+
         this.room = {};
         this.ready = false;
+
+        this.choose = '';
+        this.choosed = false;
+
+        this.answer = '';
+        this.answered = false;
     }
 
     getId() {
